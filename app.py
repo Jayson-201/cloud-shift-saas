@@ -4,16 +4,33 @@ from openai import OpenAI
 
 app = Flask(__name__)
 
-# 初始化 OpenAI (記得在 Render 後台設定環境變數)
+# 初始化 OpenAI (需在 Render 環境變數中設定 OPENAI_API_KEY)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-# 模擬目前的員工資料庫 (用於 Demo 5人限制)
+# 模擬目前的員工資料庫
 employee_db = ["小王", "小李", "小張", "小陳", "小林"]
 
-# --- 記得把原本的 employee_db 改成這樣，方便處理刪除 ---
-employee_db = ["小王", "小李", "小張", "小陳", "小林"]
+@app.route("/")
+def home():
+    return render_template("index.html")
 
-# [新增] 刪除員工路由
+@app.route("/dashboard")
+def dashboard():
+    return render_template("dashboard.html", employees=employee_db)
+
+@app.route("/add_employee", methods=["POST"])
+def add_employee():
+    if len(employee_db) >= 5:
+        return jsonify({
+            "status": "upgrade_needed",
+            "message": "您目前使用的是體驗版（限5人），升級標準版即可解鎖無上限排班與一鍵算薪功能！"
+        })
+    else:
+        new_name = request.form.get("name")
+        if new_name:
+            employee_db.append(new_name)
+        return jsonify({"status": "success", "message": "新增成功"})
+
 @app.route("/delete_employee/<name>", methods=["POST"])
 def delete_employee(name):
     if name in employee_db:
@@ -21,60 +38,54 @@ def delete_employee(name):
         return jsonify({"status": "success", "message": f"已刪除員工：{name}"})
     return jsonify({"status": "error", "message": "找不到該員工"})
 
-# [新增] 員工手機打卡前台路由
 @app.route("/clockin")
 def clockin_page():
-    # 這個頁面是給員工用手機看的
     return render_template("clockin.html", employees=employee_db)
 
-# [新增] 接收打卡資料路由
 @app.route("/api/do_clockin", methods=["POST"])
 def do_clockin():
     emp_name = request.form.get("name")
     lat = request.form.get("lat")
     lng = request.form.get("lng")
-    # 這裡可以把打卡時間跟座標存進資料庫，目前先回傳成功
     return jsonify({"status": "success", "message": f"{emp_name} 打卡成功！\n座標: {lat}, {lng}"})
-
-@app.route("/", methods=["GET", "POST"])
-def home():
-    # 這是你個人化後的 website_main，作為 Landing Page
-    return render_template("index.html")
-
-@app.route("/dashboard")
-def dashboard():
-    # SaaS 系統後台
-    return render_template("dashboard.html", employees=employee_db)
-
-@app.route("/add_employee", methods=["POST"])
-def add_employee():
-    # 【期末 Demo 亮點】展示 Freemium 商業模式的限制與升級提示
-    if len(employee_db) >= 5:
-        return jsonify({
-            "status": "upgrade_needed",
-            "message": "您目前使用的是免費版（限5人），升級標準版即可解鎖無上限排班與一鍵算薪功能！"
-        })
-    else:
-        new_name = request.form.get("name")
-        employee_db.append(new_name)
-        return jsonify({"status": "success", "message": "新增成功"})
 
 @app.route("/generate_schedule", methods=["POST"])
 def generate_schedule():
-    # 【Lab 作業整合】OpenAI 應用一：AI 智慧排班建議
     prompt = request.form.get("prompt")
-    system_prompt = "你是一個排班小幫手。請根據使用者的需求，生出一份簡單的本週排班表。"
-    
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    return jsonify({"schedule": response.choices[0].message.content})
+    system_prompt = "你是一個排班調度顧問。請根據店長遇到的突發狀況（如請假、缺人），給出具體的調度建議與應對方案。"
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return jsonify({"schedule": response.choices[0].message.content})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-# 注意：OpenAI 應用二 (圖片生成) 可另外寫一個 route 呼叫 client.images.generate 用於產生店鋪 LOGO
+@app.route("/generate_handover", methods=["POST"])
+def generate_handover():
+    prompt = request.form.get("prompt")
+    system_prompt = """你是一個專業的店鋪營運助理。請將員工口語化的交接內容，
+    整理成專業的交接日誌，並調整事情的先後順序（緊急優先）。
+    請務必嚴格使用以下三個標籤進行分類條列：
+    「⚠️ 待辦事項」
+    「🔧 設備報修」
+    「📝 營運紀錄」
+    如果沒有該類別的事項，請在標籤下寫「無」。"""
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return jsonify({"handover_log": response.choices[0].message.content})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
