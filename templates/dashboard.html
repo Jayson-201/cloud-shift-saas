@@ -6,16 +6,29 @@
     <title>SaaS 系統後台 - 排班與員工管理</title>
     <style>
         body { font-family: 'Microsoft JhengHei', Arial, sans-serif; background-color: #f4f7f6; padding: 20px; color: #333; }
-        .dashboard-container { max-width: 800px; margin: 0 auto; }
+        .dashboard-container { max-width: 900px; margin: 0 auto; }
         .card { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
         h1, h2 { color: #2c3e50; }
+        
+        /* 按鈕樣式 */
         .btn { padding: 8px 16px; background-color: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
         .btn:hover { background-color: #219150; }
+        .btn-danger { background-color: #e74c3c; padding: 4px 8px; font-size: 12px; margin-left: 10px; }
+        .btn-danger:hover { background-color: #c0392b; }
         .btn-ai { background-color: #8e44ad; }
         .btn-ai:hover { background-color: #732d91; }
+        
+        /* 列表與輸入框 */
         input[type="text"], textarea { width: 80%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
-        ul { list-style-type: none; padding: 0; }
-        li { background: #ecf0f1; margin: 5px 0; padding: 10px; border-radius: 4px; }
+        ul.emp-list { list-style-type: none; padding: 0; }
+        ul.emp-list li { background: #ecf0f1; margin: 5px 0; padding: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* 排班表格樣式 */
+        table.schedule-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        table.schedule-table th, table.schedule-table td { border: 1px solid #bdc3c7; padding: 10px; text-align: center; }
+        table.schedule-table th { background-color: #34495e; color: white; }
+        table.schedule-table td[contenteditable="true"]:hover { background-color: #fdfad9; cursor: text; }
+        
         #ai-result { background: #e8f8f5; padding: 15px; border-radius: 4px; white-space: pre-wrap; margin-top: 10px; display: none; border: 1px solid #1abc9c;}
     </style>
 </head>
@@ -25,10 +38,13 @@
     <h1>📊 店長管理後台</h1>
 
     <div class="card">
-        <h2>👥 員工名單管理 (目前方案：體驗版 限5人)</h2>
-        <ul id="employee-list">
+        <h2>👥 員工名單管理 (方案：體驗版 限5人)</h2>
+        <ul class="emp-list" id="employee-list">
             {% for emp in employees %}
-                <li>👤 {{ emp }}</li>
+                <li>
+                    <span>👤 {{ emp }}</span>
+                    <button class="btn btn-danger" onclick="deleteEmployee('{{ emp }}')">刪除</button>
+                </li>
             {% endfor %}
         </ul>
         
@@ -39,68 +55,92 @@
     </div>
 
     <div class="card">
-        <h2>✨ AI 智慧排班助理</h2>
-        <p>請輸入本週排班需求，讓 AI 自動生成建議草表：</p>
-        <textarea id="ai-prompt" rows="3" placeholder="例如：早班需要2人，晚班需要3人。小明禮拜二不排班，小李只能上早班..."></textarea><br>
-        <button class="btn btn-ai" onclick="generateSchedule()">🤖 一鍵生成排班表</button>
+        <h2>📅 本週手動排班表</h2>
+        <p style="font-size: 14px; color: #7f8c8d;">💡 提示：點擊下方表格空白處即可直接輸入員工姓名進行排班。</p>
+        <table class="schedule-table">
+            <thead>
+                <tr>
+                    <th>班別</th>
+                    <th>星期一</th><th>星期二</th><th>星期三</th><th>星期四</th><th>星期五</th><th>星期六</th><th>星期日</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>早班 (09:00-15:00)</strong></td>
+                    <td contenteditable="true">小王</td><td contenteditable="true"></td><td contenteditable="true">小林</td><td contenteditable="true"></td><td contenteditable="true">小陳</td><td contenteditable="true"></td><td contenteditable="true"></td>
+                </tr>
+                <tr>
+                    <td><strong>晚班 (15:00-21:00)</strong></td>
+                    <td contenteditable="true"></td><td contenteditable="true">小李</td><td contenteditable="true"></td><td contenteditable="true">小張</td><td contenteditable="true"></td><td contenteditable="true">小王</td><td contenteditable="true"></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="card">
+        <h2>✨ AI 排班調度顧問</h2>
+        <p>遇到突發請假排不出班？讓 AI 給你調度建議：</p>
+        <textarea id="ai-prompt" rows="3" placeholder="例如：小李這週三確診請假，早班原本只有他一個人，現在該怎麼調度比較好？"></textarea><br>
+        <button class="btn btn-ai" onclick="consultAI()">🤖 詢問 AI 顧問</button>
         
         <div id="ai-result"></div>
     </div>
 </div>
 
 <script>
-    // 處理新增員工的按鈕點擊 (觸發商業模式升級提示)
+    // --- 員工管理邏輯 ---
     function addEmployee() {
         const nameInput = document.getElementById("new-employee-name").value;
-        if (!nameInput) {
-            alert("請輸入員工姓名！");
-            return;
-        }
+        if (!nameInput) { alert("請輸入員工姓名！"); return; }
 
         let formData = new FormData();
         formData.append("name", nameInput);
 
-        fetch("/add_employee", {
-            method: "POST",
-            body: formData
-        })
+        fetch("/add_employee", { method: "POST", body: formData })
         .then(response => response.json())
         .then(data => {
             if (data.status === "upgrade_needed") {
-                // 這裡就是你 6/26 Demo 最亮眼的「升級提示視窗」
                 alert("💎 方案限制提示 💎\n\n" + data.message);
-                // 實務上這裡會跳轉到金流付費頁面，Demo 時彈出警告即可
             } else {
                 alert("✅ " + data.message);
-                window.location.reload(); // 重新載入頁面顯示新員工
+                window.location.reload(); 
             }
-        })
-        .catch(error => console.error('Error:', error));
+        });
     }
 
-    // 處理 AI 排班的按鈕點擊
-    function generateSchedule() {
+    function deleteEmployee(name) {
+        if (!confirm(`確定要刪除員工「${name}」嗎？`)) return;
+
+        fetch(`/delete_employee/${name}`, { method: "POST" })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === "success") {
+                alert("✅ " + data.message);
+                window.location.reload();
+            } else {
+                alert("❌ " + data.message);
+            }
+        });
+    }
+
+    // --- AI 顧問邏輯 ---
+    function consultAI() {
         const prompt = document.getElementById("ai-prompt").value;
         const resultDiv = document.getElementById("ai-result");
         
-        if (!prompt) {
-            alert("請輸入排班需求！");
-            return;
-        }
+        if (!prompt) { alert("請輸入你遇到的排班困難！"); return; }
 
         resultDiv.style.display = "block";
-        resultDiv.innerText = "⏳ AI 正在絞盡腦汁排班中，請稍候...";
+        resultDiv.innerText = "⏳ AI 顧問正在分析調度策略，請稍候...";
 
         let formData = new FormData();
         formData.append("prompt", prompt);
 
-        fetch("/generate_schedule", {
-            method: "POST",
-            body: formData
-        })
+        // 沿用之前的路由，但介面定位已改變
+        fetch("/generate_schedule", { method: "POST", body: formData })
         .then(response => response.json())
         .then(data => {
-            resultDiv.innerText = "✅ AI 建議排班表：\n\n" + data.schedule;
+            resultDiv.innerText = "💡 AI 顧問建議：\n\n" + data.schedule;
         })
         .catch(error => {
             resultDiv.innerText = "❌ 發生錯誤，請確認 OpenAI API Key 是否設定正確。";
