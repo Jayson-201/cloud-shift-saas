@@ -10,6 +10,32 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 # 模擬目前的員工資料庫 (用於 Demo 5人限制)
 employee_db = ["小王", "小李", "小張", "小陳", "小林"]
 
+# --- 記得把原本的 employee_db 改成這樣，方便處理刪除 ---
+employee_db = ["小王", "小李", "小張", "小陳", "小林"]
+
+# [新增] 刪除員工路由
+@app.route("/delete_employee/<name>", methods=["POST"])
+def delete_employee(name):
+    if name in employee_db:
+        employee_db.remove(name)
+        return jsonify({"status": "success", "message": f"已刪除員工：{name}"})
+    return jsonify({"status": "error", "message": "找不到該員工"})
+
+# [新增] 員工手機打卡前台路由
+@app.route("/clockin")
+def clockin_page():
+    # 這個頁面是給員工用手機看的
+    return render_template("clockin.html", employees=employee_db)
+
+# [新增] 接收打卡資料路由
+@app.route("/api/do_clockin", methods=["POST"])
+def do_clockin():
+    emp_name = request.form.get("name")
+    lat = request.form.get("lat")
+    lng = request.form.get("lng")
+    # 這裡可以把打卡時間跟座標存進資料庫，目前先回傳成功
+    return jsonify({"status": "success", "message": f"{emp_name} 打卡成功！\n座標: {lat}, {lng}"})
+
 @app.route("/", methods=["GET", "POST"])
 def home():
     # 這是你個人化後的 website_main，作為 Landing Page
