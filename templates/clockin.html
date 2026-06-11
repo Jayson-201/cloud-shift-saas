@@ -2,40 +2,45 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"> <title>員工行動打卡</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>員工行動打卡</title>
     <style>
-        body { font-family: 'Microsoft JhengHei', sans-serif; background-color: #f0f2f5; text-align: center; padding: 20px; }
-        .card { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 400px; margin: 0 auto; }
-        h2 { color: #2c3e50; margin-bottom: 20px; }
-        select { width: 100%; padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #ccc; font-size: 16px; }
-        .btn-face { background-color: #3498db; color: white; padding: 15px; width: 100%; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .btn-face:active { background-color: #2980b9; }
-        #status-msg { margin-top: 20px; font-weight: bold; color: #e74c3c; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; text-align: center; padding: 20px; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh;}
+        .card { background: white; padding: 40px 30px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); max-width: 400px; width: 100%; box-sizing: border-box;}
+        h2 { color: #1a73e8; margin-top: 0; margin-bottom: 25px; font-size: 24px;}
+        select { width: 100%; padding: 14px; margin-bottom: 25px; border-radius: 8px; border: 1px solid #dcdcdc; font-size: 16px; background-color: #f8f9fa; outline: none;}
+        select:focus { border-color: #1a73e8; }
+        .btn-face { background-color: #1a73e8; color: white; padding: 16px; width: 100%; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s;}
+        .btn-face:active { background-color: #1557b0; }
+        .btn-face:disabled { background-color: #9aa0a6; cursor: not-allowed; }
+        #status-msg { margin-top: 25px; font-weight: 500; color: #e74c3c; font-size: 15px; line-height: 1.5; white-space: pre-wrap;}
         .success-msg { color: #27ae60 !important; }
         
-        /* 簡單的掃描動畫效果 */
-        @keyframes scan { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        @keyframes scan { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
         .scanning { animation: scan 1s infinite; background-color: #f39c12 !important; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h2>📱 員工行動打卡</h2>
+    <h2>員工行動打卡</h2>
     
-    <label for="emp-select">請選擇您的姓名：</label>
     <select id="emp-select">
-        <option value="">-- 請選擇 --</option>
+        <option value="">-- 請選擇您的姓名 --</option>
         {% for emp in employees %}
             <option value="{{ emp }}">{{ emp }}</option>
         {% endfor %}
     </select>
 
     <button id="auth-btn" class="btn-face" onclick="startClockIn()">
-        📸 啟動臉部辨識與 GPS 打卡
+        啟動臉部辨識與 GPS 打卡
     </button>
 
     <p id="status-msg"></p>
+    
+    <div style="margin-top: 30px;">
+        <a href="/" style="color: #1a73e8; text-decoration: none; font-size: 14px;">返回系統首頁</a>
+    </div>
 </div>
 
 <script>
@@ -49,28 +54,23 @@ function startClockIn() {
         return;
     }
 
-    // 1. 模擬臉部辨識 UI 效果
     authBtn.classList.add("scanning");
-    authBtn.innerText = "🔄 臉部辨識中...";
+    authBtn.innerText = "臉部辨識與定位中...";
     statusMsg.className = "";
     statusMsg.innerText = "正在驗證生物特徵與獲取定位...";
 
-    // 延遲 1.5 秒，假裝在辨識
     setTimeout(() => {
-        // 2. 獲取真實 GPS 定位
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
-                    
-                    // 3. 將資料送回後端
                     sendClockInData(empName, lat, lng, authBtn, statusMsg);
                 },
                 (error) => {
                     authBtn.classList.remove("scanning");
-                    authBtn.innerText = "📸 啟動臉部辨識與 GPS 打卡";
-                    statusMsg.innerText = "❌ 無法獲取 GPS 定位，請確認手機已開啟定位權限。";
+                    authBtn.innerText = "啟動臉部辨識與 GPS 打卡";
+                    statusMsg.innerText = "無法獲取 GPS 定位，請確認手機已開啟定位權限。";
                 },
                 { enableHighAccuracy: true, timeout: 5000 }
             );
@@ -90,9 +90,9 @@ function sendClockInData(name, lat, lng, btn, msgBox) {
     .then(response => response.json())
     .then(data => {
         btn.classList.remove("scanning");
-        btn.innerText = "✅ 打卡完成";
+        btn.innerText = "打卡完成";
         btn.style.backgroundColor = "#27ae60";
-        btn.disabled = true; // 打卡後鎖定按鈕
+        btn.disabled = true; 
         
         msgBox.classList.add("success-msg");
         msgBox.innerText = data.message;
