@@ -3,65 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SaaS 系統後台 - 排班與員工管理</title>
+    <title>系統後台 - 排班與員工管理</title>
     <style>
-        body { font-family: 'Microsoft JhengHei', Arial, sans-serif; background-color: #f4f7f6; padding: 20px; color: #333; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 20px; color: #333; }
         .dashboard-container { max-width: 900px; margin: 0 auto; }
-        .card { background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-bottom: 20px; }
-        h1, h2 { color: #2c3e50; }
+        .card { background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; border-top: 4px solid #1a73e8;}
+        h1 { color: #2c3e50; margin-bottom: 30px; text-align: center;}
+        h2 { color: #2c3e50; font-size: 20px; margin-top: 0;}
         
-        /* 按鈕樣式 */
-        .btn { padding: 8px 16px; background-color: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn:hover { background-color: #219150; }
-        .btn-danger { background-color: #e74c3c; padding: 4px 8px; font-size: 12px; margin-left: 10px; }
+        .btn { padding: 10px 18px; background-color: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-right: 5px; transition: 0.2s;}
+        .btn:hover { background-color: #1557b0; }
+        .btn-danger { background-color: #e74c3c; padding: 6px 12px; font-size: 13px; margin-left: 10px; }
         .btn-danger:hover { background-color: #c0392b; }
         .btn-ai { background-color: #8e44ad; }
         .btn-ai:hover { background-color: #732d91; }
+        .btn-voice { background-color: #f39c12; }
+        .btn-voice:hover { background-color: #d68910; }
         
-        /* 列表與輸入框 */
-        input[type="text"], textarea { width: 80%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        input[type="text"], textarea { width: 100%; box-sizing: border-box; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit;}
         ul.emp-list { list-style-type: none; padding: 0; }
-        ul.emp-list li { background: #ecf0f1; margin: 5px 0; padding: 10px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        ul.emp-list li { background: #f8f9fa; margin: 8px 0; padding: 12px 15px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee;}
         
-        /* 排班表格樣式 */
-        table.schedule-table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        table.schedule-table th, table.schedule-table td { border: 1px solid #bdc3c7; padding: 10px; text-align: center; }
-        table.schedule-table th { background-color: #34495e; color: white; }
-        table.schedule-table td[contenteditable="true"]:hover { background-color: #fdfad9; cursor: text; }
+        table.schedule-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 15px;}
+        table.schedule-table th, table.schedule-table td { border: 1px solid #e0e0e0; padding: 12px; text-align: center; }
+        table.schedule-table th { background-color: #f8f9fa; color: #333; font-weight: 600;}
+        table.schedule-table td[contenteditable="true"]:hover { background-color: #fdfad9; cursor: text; outline: none;}
+        table.schedule-table td[contenteditable="true"]:focus { background-color: #fffde7; border: 2px solid #f39c12;}
         
-        #ai-result { background: #e8f8f5; padding: 15px; border-radius: 4px; white-space: pre-wrap; margin-top: 10px; display: none; border: 1px solid #1abc9c;}
+        .ai-result { background: #f8f9fa; padding: 20px; border-radius: 6px; white-space: pre-wrap; margin-top: 15px; display: none; border-left: 4px solid #8e44ad; line-height: 1.6;}
     </style>
 </head>
 <body>
 
 <div class="dashboard-container">
-    <h1>📊 店長管理後台</h1>
+    <h1>店長營運與人事管理後台</h1>
 
     <div class="card">
-        <h2>👥 員工名單管理 (方案：體驗版 限5人)</h2>
+        <h2>員工名單管理 (方案：體驗版 限5人)</h2>
         <ul class="emp-list" id="employee-list">
             {% for emp in employees %}
                 <li>
-                    <span>👤 {{ emp }}</span>
+                    <span>{{ emp }}</span>
                     <button class="btn btn-danger" onclick="deleteEmployee('{{ emp }}')">刪除</button>
                 </li>
             {% endfor %}
         </ul>
-        
-        <div style="margin-top: 15px;">
-            <input type="text" id="new-employee-name" placeholder="輸入新員工姓名...">
-            <button class="btn" onclick="addEmployee()">+ 新增員工</button>
+        <div style="margin-top: 20px; display: flex;">
+            <input type="text" id="new-employee-name" placeholder="輸入新員工姓名..." style="width: 75%; margin-right: 15px; margin-bottom: 0;">
+            <button class="btn" onclick="addEmployee()" style="width: 25%;">新增員工</button>
         </div>
     </div>
 
     <div class="card">
-        <h2>📅 本週手動排班表</h2>
-        <p style="font-size: 14px; color: #7f8c8d;">💡 提示：點擊下方表格空白處即可直接輸入員工姓名進行排班。</p>
+        <h2>本週手動排班表</h2>
+        <p style="font-size: 14px; color: #7f8c8d; margin-top: 0;">提示：點擊下方表格空白處即可直接輸入員工姓名進行排班。</p>
         <table class="schedule-table">
             <thead>
                 <tr>
-                    <th>班別</th>
-                    <th>星期一</th><th>星期二</th><th>星期三</th><th>星期四</th><th>星期五</th><th>星期六</th><th>星期日</th>
+                    <th>班別</th><th>星期一</th><th>星期二</th><th>星期三</th><th>星期四</th><th>星期五</th><th>星期六</th><th>星期日</th>
                 </tr>
             </thead>
             <tbody>
@@ -78,74 +77,92 @@
     </div>
 
     <div class="card">
-        <h2>✨ AI 排班調度顧問</h2>
-        <p>遇到突發請假排不出班？讓 AI 給你調度建議：</p>
-        <textarea id="ai-prompt" rows="3" placeholder="例如：小李這週三確診請假，早班原本只有他一個人，現在該怎麼調度比較好？"></textarea><br>
-        <button class="btn btn-ai" onclick="consultAI()">🤖 詢問 AI 顧問</button>
-        
-        <div id="ai-result"></div>
+        <h2>AI 排班調度顧問 (OpenAI 整合)</h2>
+        <p style="font-size: 14px; color: #7f8c8d; margin-top: 0;">遇到突發請假排不出班？讓 AI 輔助調度：</p>
+        <textarea id="ai-prompt-schedule" rows="2" placeholder="例如：小李這週三確診請假，早班原本只有他一個人，現在該怎麼調度比較好？"></textarea>
+        <button class="btn btn-ai" onclick="consultAI()">詢問 AI 顧問</button>
+        <div id="ai-result-schedule" class="ai-result"></div>
+    </div>
+
+    <div class="card">
+        <h2>語音交接日誌總結 (OpenAI 整合)</h2>
+        <p style="font-size: 14px; color: #7f8c8d; margin-top: 0;">下班口頭碎碎念，AI 自動轉化為專業交接日誌：</p>
+        <textarea id="ai-prompt-handover" rows="4" placeholder="請輸入語音辨識的口語文字..."></textarea>
+        <div style="margin-top: 10px;">
+            <button class="btn btn-voice" onclick="simulateVoiceInput()">模擬語音輸入</button>
+            <button class="btn btn-ai" onclick="generateHandover()">產生專業交接日誌</button>
+        </div>
+        <div id="ai-result-handover" class="ai-result"></div>
     </div>
 </div>
 
 <script>
-    // --- 員工管理邏輯 ---
     function addEmployee() {
         const nameInput = document.getElementById("new-employee-name").value;
         if (!nameInput) { alert("請輸入員工姓名！"); return; }
-
         let formData = new FormData();
         formData.append("name", nameInput);
-
         fetch("/add_employee", { method: "POST", body: formData })
         .then(response => response.json())
         .then(data => {
-            if (data.status === "upgrade_needed") {
-                alert("💎 方案限制提示 💎\n\n" + data.message);
-            } else {
-                alert("✅ " + data.message);
-                window.location.reload(); 
-            }
+            if (data.status === "upgrade_needed") { alert("方案限制提示\n\n" + data.message); } 
+            else { alert(data.message); window.location.reload(); }
         });
     }
 
     function deleteEmployee(name) {
         if (!confirm(`確定要刪除員工「${name}」嗎？`)) return;
-
         fetch(`/delete_employee/${name}`, { method: "POST" })
         .then(response => response.json())
         .then(data => {
-            if (data.status === "success") {
-                alert("✅ " + data.message);
-                window.location.reload();
-            } else {
-                alert("❌ " + data.message);
-            }
+            if (data.status === "success") { alert(data.message); window.location.reload(); } 
+            else { alert(data.message); }
         });
     }
 
-    // --- AI 顧問邏輯 ---
     function consultAI() {
-        const prompt = document.getElementById("ai-prompt").value;
-        const resultDiv = document.getElementById("ai-result");
-        
+        const prompt = document.getElementById("ai-prompt-schedule").value;
+        const resultDiv = document.getElementById("ai-result-schedule");
         if (!prompt) { alert("請輸入你遇到的排班困難！"); return; }
-
+        
         resultDiv.style.display = "block";
-        resultDiv.innerText = "⏳ AI 顧問正在分析調度策略，請稍候...";
-
+        resultDiv.innerText = "處理中，請稍候...";
         let formData = new FormData();
         formData.append("prompt", prompt);
-
-        // 沿用之前的路由，但介面定位已改變
         fetch("/generate_schedule", { method: "POST", body: formData })
         .then(response => response.json())
-        .then(data => {
-            resultDiv.innerText = "💡 AI 顧問建議：\n\n" + data.schedule;
-        })
-        .catch(error => {
-            resultDiv.innerText = "❌ 發生錯誤，請確認 OpenAI API Key 是否設定正確。";
-            console.error('Error:', error);
-        });
+        .then(data => { resultDiv.innerText = "AI 顧問建議：\n\n" + data.schedule; })
+        .catch(error => { resultDiv.innerText = "發生錯誤，請確認 API Key。"; });
+    }
+
+    function simulateVoiceInput() {
+        const textToType = "那個明天早班注意一下，今天下午兩桌客人打翻飲料，衛生紙跟抹布用很兇，記得去庫房補貨。然後牛奶快沒了，明天廠商來記得叫三箱。對了，靠窗那邊的冷氣在滴水，要找師傅來看一下。";
+        const textarea = document.getElementById("ai-prompt-handover");
+        textarea.value = "";
+        let i = 0;
+        function typeWriter() {
+            if (i < textToType.length) {
+                textarea.value += textToType.charAt(i);
+                i++;
+                setTimeout(typeWriter, 30); 
+            }
+        }
+        typeWriter();
+    }
+
+    function generateHandover() {
+        const prompt = document.getElementById("ai-prompt-handover").value;
+        const resultDiv = document.getElementById("ai-result-handover");
+        if (!prompt) { alert("請先輸入交接內容或點擊模擬語音輸入！"); return; }
+        
+        resultDiv.style.display = "block";
+        resultDiv.innerText = "處理中，請稍候...";
+        let formData = new FormData();
+        formData.append("prompt", prompt);
+        fetch("/generate_handover", { method: "POST", body: formData })
+        .then(response => response.json())
+        .then(data => { resultDiv.innerHTML = "<strong>專業交接日誌：</strong><br><br>" + data.handover_log; })
+        .catch(error => { resultDiv.innerText = "發生錯誤，請確認 API Key。"; });
     }
 </script>
 
