@@ -3,21 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>員工行動打卡</title>
+    <title>員工行動打卡 (人臉辨識版)</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f0f2f5; text-align: center; padding: 20px; margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh;}
-        .card { background: white; padding: 40px 30px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); max-width: 400px; width: 100%; box-sizing: border-box;}
-        h2 { color: #1a73e8; margin-top: 0; margin-bottom: 25px; font-size: 24px;}
-        select { width: 100%; padding: 14px; margin-bottom: 25px; border-radius: 8px; border: 1px solid #dcdcdc; font-size: 16px; background-color: #f8f9fa; outline: none;}
-        select:focus { border-color: #1a73e8; }
-        .btn-face { background-color: #1a73e8; color: white; padding: 16px; width: 100%; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s;}
-        .btn-face:active { background-color: #1557b0; }
-        .btn-face:disabled { background-color: #9aa0a6; cursor: not-allowed; }
-        #status-msg { margin-top: 25px; font-weight: 500; color: #e74c3c; font-size: 15px; line-height: 1.5; white-space: pre-wrap;}
-        .success-msg { color: #27ae60 !important; }
+        .card { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 8px 20px rgba(0,0,0,0.08); max-width: 400px; width: 100%; box-sizing: border-box;}
+        h2 { color: #1a73e8; margin-top: 0; margin-bottom: 20px; font-size: 24px;}
+        select { width: 100%; padding: 14px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #dcdcdc; font-size: 16px; background-color: #f8f9fa; outline: none;}
         
-        @keyframes scan { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-        .scanning { animation: scan 1s infinite; background-color: #f39c12 !important; }
+        /* 相機預覽區塊 */
+        #camera-container { display: none; margin-bottom: 20px; position: relative; border-radius: 8px; overflow: hidden; border: 3px solid #ddd;}
+        #video-feed { width: 100%; display: block; transform: scaleX(-1); /* 讓前鏡頭像照鏡子一樣自然 */ }
+        .scan-line { position: absolute; top: 0; left: 0; width: 100%; height: 5px; background-color: #27ae60; box-shadow: 0 0 10px #27ae60; animation: scan 2s infinite; display: none;}
+        @keyframes scan { 0% { top: 0; } 50% { top: 95%; } 100% { top: 0; } }
+
+        .btn-action { background-color: #1a73e8; color: white; padding: 16px; width: 100%; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; transition: 0.2s; margin-bottom: 10px;}
+        .btn-action:hover { background-color: #1557b0; }
+        .btn-action:disabled { background-color: #9aa0a6; cursor: not-allowed; }
+        
+        #btn-capture { display: none; background-color: #e67e22; }
+        #btn-capture:hover { background-color: #d35400; }
+
+        #status-msg { margin-top: 15px; font-weight: 500; color: #e74c3c; font-size: 15px; line-height: 1.5; white-space: pre-wrap;}
+        .success-msg { color: #27ae60 !important; }
     </style>
 </head>
 <body>
@@ -26,56 +33,96 @@
     <h2>員工行動打卡</h2>
     
     <select id="emp-select">
-        <option value="">-- 請選擇您的姓名 --</option>
+        <option value="">-- 請先選擇您的姓名 --</option>
         {% for emp in employees %}
             <option value="{{ emp }}">{{ emp }}</option>
         {% endfor %}
     </select>
 
-    <button id="auth-btn" class="btn-face" onclick="startClockIn()">
-        啟動臉部辨識與 GPS 打卡
-    </button>
+    <div id="camera-container">
+        <video id="video-feed" autoplay playsinline></video>
+        <div id="scan-line" class="scan-line"></div>
+    </div>
+
+    <button id="btn-start" class="btn-action" onclick="startCamera()">📷 開啟相機進行辨識</button>
+    <button id="btn-capture" class="btn-action" onclick="captureAndVerify()">✅ 拍攝並進行特徵比對</button>
 
     <p id="status-msg"></p>
     
-    <div style="margin-top: 30px;">
+    <div style="margin-top: 20px;">
         <a href="/" style="color: #1a73e8; text-decoration: none; font-size: 14px;">返回系統首頁</a>
     </div>
 </div>
 
 <script>
-function startClockIn() {
+let videoStream = null;
+
+// 第一步：請求相機權限並顯示畫面
+function startCamera() {
     const empName = document.getElementById("emp-select").value;
     const statusMsg = document.getElementById("status-msg");
-    const authBtn = document.getElementById("auth-btn");
+    if (!empName) { statusMsg.innerText = "請先選擇員工姓名！"; return; }
 
-    if (!empName) {
-        statusMsg.innerText = "請先選擇姓名！";
-        return;
-    }
+    statusMsg.innerText = "正在請求相機權限...";
+    
+    // 呼叫手機前鏡頭 (facingMode: "user")
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(stream => {
+            videoStream = stream;
+            document.getElementById("camera-container").style.display = "block";
+            document.getElementById("video-feed").srcObject = stream;
+            
+            document.getElementById("btn-start").style.display = "none";
+            document.getElementById("btn-capture").style.display = "block";
+            statusMsg.innerText = "請將臉部對準鏡頭，然後按下拍攝。";
+        })
+        .catch(err => {
+            statusMsg.innerText = "❌ 無法存取相機，請確認瀏覽器已給予相機權限！";
+        });
+}
 
-    authBtn.classList.add("scanning");
-    authBtn.innerText = "臉部辨識與定位中...";
+// 第二步：凍結畫面 -> 模擬辨識 -> 抓取 GPS -> 送出打卡
+function captureAndVerify() {
+    const empName = document.getElementById("emp-select").value;
+    const statusMsg = document.getElementById("status-msg");
+    const btnCapture = document.getElementById("btn-capture");
+    const video = document.getElementById("video-feed");
+
+    // 凍結相機畫面 (假裝拍照)
+    video.pause();
+    document.getElementById("scan-line").style.display = "block"; // 顯示掃描線特效
+
+    btnCapture.disabled = true;
+    btnCapture.innerText = "🔄 雲端特徵比對中...";
     statusMsg.className = "";
-    statusMsg.innerText = "正在驗證生物特徵與獲取定位...";
+    statusMsg.innerText = "正在進行人臉特徵比對與 GPS 定位...";
 
+    // 模擬 1.5 秒的資料庫比對時間
     setTimeout(() => {
         if (navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
+                    // 關閉相機鏡頭 (熄滅手機綠燈)
+                    if(videoStream) {
+                        videoStream.getTracks().forEach(track => track.stop());
+                    }
+                    document.getElementById("scan-line").style.display = "none";
+
                     const lat = position.coords.latitude;
                     const lng = position.coords.longitude;
-                    sendClockInData(empName, lat, lng, authBtn, statusMsg);
+                    
+                    // 呼叫後端 API 完成打卡
+                    sendClockInData(empName, lat, lng, btnCapture, statusMsg);
                 },
                 (error) => {
-                    authBtn.classList.remove("scanning");
-                    authBtn.innerText = "啟動臉部辨識與 GPS 打卡";
-                    statusMsg.innerText = "無法獲取 GPS 定位，請確認手機已開啟定位權限。";
+                    statusMsg.innerText = "❌ 辨識成功，但無法獲取 GPS 定位，打卡失敗。";
+                    btnCapture.innerText = "❌ 定位失敗";
+                    document.getElementById("scan-line").style.display = "none";
                 },
                 { enableHighAccuracy: true, timeout: 5000 }
             );
         } else {
-            statusMsg.innerText = "您的瀏覽器不支援 GPS 定位功能。";
+            statusMsg.innerText = "您的設備不支援 GPS 定位。";
         }
     }, 1500);
 }
@@ -89,10 +136,8 @@ function sendClockInData(name, lat, lng, btn, msgBox) {
     fetch("/api/do_clockin", { method: "POST", body: formData })
     .then(response => response.json())
     .then(data => {
-        btn.classList.remove("scanning");
-        btn.innerText = "打卡完成";
+        btn.innerText = "🎉 打卡完成";
         btn.style.backgroundColor = "#27ae60";
-        btn.disabled = true; 
         
         msgBox.classList.add("success-msg");
         msgBox.innerText = data.message;
