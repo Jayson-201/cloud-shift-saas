@@ -4,27 +4,27 @@ from openai import OpenAI
 from datetime import datetime
 
 app = Flask(__name__)
-# 預防沒有設定環境變數時報錯，加上預備金鑰或空字串
+# 預防環境變數未設定時崩潰
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "mock-key"))
 
-# 1. 基礎資料庫
+# ================= 資料庫模擬 =================
 employee_db = ["小王", "小李", "小張", "小陳", "小林"]
 face_db = {}
 
-# 2. 打卡紀錄儲存（昨晚沒串成功的核心）
+# 預載打卡紀錄，確保薪水頁面和後台一打開就有豐富數據
 clockin_records = [
     {"name": "小王", "time": "09:02", "shift": "早班", "status": "遲到"},
     {"name": "小張", "time": "14:00", "shift": "晚班", "status": "正常"},
     {"name": "小林", "time": "08:55", "shift": "早班", "status": "正常"}
 ]
 
-# 3. 排班表持久化資料
+# 排班表初始資料
 schedule_data = {
     "早班": ["小王", "小張", "小林", "小林", "小陳", "小張", "小陳"],
     "晚班": ["小陳", "小李", "小王", "小張", "小王", "小王", "小李"]
 }
 
-# 4. 薪水試算頁面所需的「本月出勤統計數據」（2位正職、3位PT）
+# 薪水試算數據 (2正職 + 3PT)
 salary_summary = [
     {"name": "小王", "type": "正職", "base": 38000, "late": 2, "leave": 1, "hours": 0, "total": 38000, "note": "請假1天、遲到2次（正職不扣薪）"},
     {"name": "小李", "type": "正職", "base": 38000, "late": 0, "leave": 0, "hours": 0, "total": 38000, "note": "全勤"},
@@ -33,9 +33,16 @@ salary_summary = [
     {"name": "小林", "type": "PT", "base": "196/hr", "late": 3, "leave": 0, "hours": 95, "total": 18620, "note": "總計工時 95 小時，遲到3次"}
 ]
 
+# ================= 網頁路由頁面 =================
+
 @app.route("/")
 def home():
     return render_template("index.html")
+
+# 補上你最需要的 /clockin 路由，解決 404 問題！
+@app.route("/clockin")
+def clockin_page():
+    return render_template("clockin.html", employees=employee_db)
 
 @app.route("/dashboard")
 def dashboard():
@@ -49,16 +56,16 @@ def dashboard():
 def salary():
     return render_template("salary.html", summary=salary_summary, records=clockin_records)
 
+# ================= 後端 API 功能 =================
+
 @app.route("/save_schedule", methods=["POST"])
 def save_schedule():
     global schedule_data
     schedule_data = request.json
     return jsonify({"status": "success"})
 
-# 核心修正：唯一保留的打卡 API，自動抓取當前時間判定早晚班與遲到
 @app.route("/api/do_clockin", methods=["POST"])
 def do_clockin():
-    # 支援前端傳送 JSON 或 FormData 兩種格式，提高容錯率
     if request.is_json:
         data = request.json
         emp_name = data.get("name")
@@ -73,8 +80,7 @@ def do_clockin():
     hour = now.hour
     minute = now.minute
 
-    # 自動時間與班別判定邏輯
-    # 早班: 09:00~18:00，晚班: 14:00~22:00
+    # 自動判定班別與遲到邏輯 (早班: 09:00~18:00，晚班: 14:00~22:00)
     if 14 <= hour < 22:
         shift = "晚班"
         status = "遲到" if (hour == 14 and minute > 0) or hour > 14 else "正常"
@@ -83,7 +89,7 @@ def do_clockin():
         status = "遲到" if (hour == 9 and minute > 0) or hour > 9 else "正常"
 
     new_record = {"name": emp_name, "time": time_str, "shift": shift, "status": status}
-    clockin_records.insert(0, new_record) # 讓最新的打卡紀錄排在最上面
+    clockin_records.insert(0, new_record) # 讓最新打卡紀錄顯示在最上面
 
     return jsonify({
         "status": "success", 
