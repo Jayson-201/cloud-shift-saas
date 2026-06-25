@@ -97,11 +97,24 @@ def do_clockin():
 @app.route("/generate_schedule", methods=["POST"])
 def generate_schedule():
     prompt = request.form.get("prompt")
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "system", "content": "你是一個排班調度顧問。請根據狀況給出調度建議。"}, {"role": "user", "content": prompt}]
-    )
-    return jsonify({"schedule": response.choices[0].message.content})
+    # 將現有員工名單寫入提示詞，禁止 AI 瞎編
+    employee_str = ", ".join(employee_db)
+    system_prompt = f"""你是一個排班調度顧問。
+    目前店內的合法員工清單為：{employee_str}。
+    你在給予調度建議時，嚴格禁止提到清單以外的人名。
+    如果需要調度，請只從這份名單中挑選可用的員工，並解釋原因。"""
+    
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        return jsonify({"schedule": response.choices[0].message.content})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @app.route("/generate_handover", methods=["POST"])
 def generate_handover():
