@@ -10,6 +10,7 @@
         .card { background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; border-top: 4px solid #1a73e8;}
         h1 { color: #2c3e50; margin-bottom: 30px; text-align: center;}
         h2 { color: #2c3e50; font-size: 20px; margin-top: 0;}
+        
         .btn { padding: 10px 18px; background-color: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-right: 5px; transition: 0.2s;}
         .btn:hover { background-color: #1557b0; }
         .btn-danger { background-color: #e74c3c; padding: 6px 12px; font-size: 13px; margin-left: 5px; border-radius: 4px;}
@@ -20,16 +21,19 @@
         .btn-ai:hover { background-color: #732d91; }
         .btn-voice { background-color: #f39c12; }
         .btn-voice:hover { background-color: #d68910; }
+        
         input[type="text"], textarea { width: 100%; box-sizing: border-box; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit;}
         ul.emp-list { list-style-type: none; padding: 0; margin-bottom: 15px;}
         ul.emp-list li { background: #f8f9fa; margin: 8px 0; padding: 12px 15px; border-radius: 6px; display: flex; align-items: center; border: 1px solid #eee;}
+        
         table.schedule-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 15px;}
         table.schedule-table th, table.schedule-table td { border: 1px solid #e0e0e0; padding: 12px; text-align: center; }
         table.schedule-table th { background-color: #f8f9fa; color: #333; font-weight: 600;}
         table.schedule-table td[contenteditable="true"]:hover { background-color: #fdfad9; cursor: text; outline: none;}
+        table.schedule-table td[contenteditable="true"]:focus { background-color: #fffde7; border: 2px solid #f39c12;}
+        
         .ai-result { background: #f8f9fa; padding: 20px; border-radius: 6px; white-space: pre-wrap; margin-top: 15px; display: none; border-left: 4px solid #8e44ad; line-height: 1.6;}
         
-        /* 註冊相機的浮動視窗 */
         #camera-modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; box-shadow: 0 0 20px rgba(0,0,0,0.5); z-index: 1000; border-radius: 10px; text-align: center; }
         #video-register { width: 100%; max-width: 400px; transform: scaleX(-1); border-radius: 8px;}
     </style>
@@ -71,7 +75,7 @@
 
     <div class="card">
         <h2>AI 排班調度顧問 (OpenAI)</h2>
-        <textarea id="ai-prompt-schedule" rows="2" placeholder="例如：小李這週三確診請假..."></textarea>
+        <textarea id="ai-prompt-schedule" rows="2" placeholder="例如：小李這週三確診請假，早班原本只有他一個人，現在該怎麼調度比較好？"></textarea>
         <button class="btn btn-ai" onclick="consultAI()">詢問 AI 顧問</button>
         <div id="ai-result-schedule" class="ai-result"></div>
     </div>
@@ -80,7 +84,7 @@
         <h2>語音交接日誌總結 (OpenAI)</h2>
         <textarea id="ai-prompt-handover" rows="4" placeholder="請輸入語音辨識的口語文字..."></textarea>
         <div style="margin-top: 10px;">
-            <button class="btn btn-voice" onclick="simulateVoiceInput()">模擬語音輸入</button>
+            <button class="btn btn-voice" onclick="simulateVoiceInput()">🎤 語音輸入</button>
             <button class="btn btn-ai" onclick="generateHandover()">產生專業交接日誌</button>
         </div>
         <div id="ai-result-handover" class="ai-result"></div>
@@ -98,7 +102,6 @@
 </div>
 
 <script>
-    // 原本的增刪員工、AI 功能程式碼
     function addEmployee() {
         const nameInput = document.getElementById("new-employee-name").value;
         if (!nameInput) { alert("請輸入員工姓名！"); return; }
@@ -115,12 +118,6 @@
         .then(data => { alert(data.message); window.location.reload(); });
     }
     
-    // 省略 AI 顧問與語音交接的 JS (保留你原本的內容即可)
-    function consultAI() { /* ... */ }
-    function simulateVoiceInput() { /* ... */ }
-    function generateHandover() { /* ... */ }
-
-    // --- 新增：登錄人臉邏輯 ---
     let registerStream = null;
     let currentRegisterName = "";
 
@@ -130,7 +127,7 @@
         document.getElementById("camera-modal").style.display = "block";
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
             .then(stream => { registerStream = stream; document.getElementById("video-register").srcObject = stream; })
-            .catch(err => { alert("無法開啟相機，請確認權限。"); closeCamera(); });
+            .catch(err => { alert("無法開啟相機。"); closeCamera(); });
     }
 
     function closeCamera() {
@@ -143,18 +140,47 @@
         const canvas = document.getElementById("canvas-register");
         canvas.width = video.videoWidth; canvas.height = video.videoHeight;
         canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // 將圖片轉為 Base64 格式
         const base64Image = canvas.toDataURL("image/jpeg");
         closeCamera();
-
-        let formData = new FormData();
-        formData.append("name", currentRegisterName);
-        formData.append("image", base64Image);
-
+        let formData = new FormData(); formData.append("name", currentRegisterName); formData.append("image", base64Image);
         fetch("/register_face", { method: "POST", body: formData })
         .then(response => response.json())
         .then(data => { alert(data.message); window.location.reload(); });
+    }
+
+    function consultAI() { 
+        const prompt = document.getElementById("ai-prompt-schedule").value;
+        const resultDiv = document.getElementById("ai-result-schedule");
+        if (!prompt) return;
+        resultDiv.style.display = "block"; resultDiv.innerText = "⏳ 處理中，請稍候...";
+        let formData = new FormData(); formData.append("prompt", prompt);
+        fetch("/generate_schedule", { method: "POST", body: formData })
+        .then(response => response.json())
+        .then(data => { resultDiv.innerText = "💡 AI 顧問建議：\n\n" + data.schedule; });
+    }
+
+    function simulateVoiceInput() {
+        const textarea = document.getElementById("ai-prompt-handover");
+        const btn = document.querySelector(".btn-voice");
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+            recognition.lang = 'zh-TW';
+            recognition.onstart = () => { btn.innerText = "🔴 錄音中..."; btn.style.backgroundColor = "#e74c3c"; textarea.value = ""; };
+            recognition.onresult = (event) => { textarea.value = event.results[0][0].transcript; };
+            recognition.onend = () => { btn.innerText = "🎤 語音輸入"; btn.style.backgroundColor = "#f39c12"; };
+            recognition.start();
+        } else { alert("瀏覽器不支援語音辨識"); }
+    }
+
+    function generateHandover() { 
+        const prompt = document.getElementById("ai-prompt-handover").value;
+        const resultDiv = document.getElementById("ai-result-handover");
+        if (!prompt) return;
+        resultDiv.style.display = "block"; resultDiv.innerText = "⏳ 處理中，請稍候...";
+        let formData = new FormData(); formData.append("prompt", prompt);
+        fetch("/generate_handover", { method: "POST", body: formData })
+        .then(response => response.json())
+        .then(data => { resultDiv.innerHTML = "<strong>📋 專業交接日誌：</strong><br><br>" + data.handover_log; });
     }
 </script>
 </body>
