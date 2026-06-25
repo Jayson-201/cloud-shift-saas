@@ -1,16 +1,37 @@
 import os
 from flask import Flask, render_template, request, jsonify
 from openai import OpenAI
+from datetime import datetime
 
 app = Flask(__name__)
+# 預防沒有設定環境變數時報錯，加上預備金鑰或空字串
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY", "mock-key"))
 
-# 初始化 OpenAI (需在 Render 環境變數中設定 OPENAI_API_KEY)
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-
-# 模擬目前的員工資料庫
+# 1. 基礎資料庫
 employee_db = ["小王", "小李", "小張", "小陳", "小林"]
-# 儲存員工的註冊人臉 (Base64 格式)
-face_db = {} 
+face_db = {}
+
+# 2. 打卡紀錄儲存（昨晚沒串成功的核心）
+clockin_records = [
+    {"name": "小王", "time": "09:02", "shift": "早班", "status": "遲到"},
+    {"name": "小張", "time": "14:00", "shift": "晚班", "status": "正常"},
+    {"name": "小林", "time": "08:55", "shift": "早班", "status": "正常"}
+]
+
+# 3. 排班表持久化資料
+schedule_data = {
+    "早班": ["小王", "小張", "小林", "小林", "小陳", "小張", "小陳"],
+    "晚班": ["小陳", "小李", "小王", "小張", "小王", "小王", "小李"]
+}
+
+# 4. 薪水試算頁面所需的「本月出勤統計數據」（2位正職、3位PT）
+salary_summary = [
+    {"name": "小王", "type": "正職", "base": 38000, "late": 2, "leave": 1, "hours": 0, "total": 38000, "note": "請假1天、遲到2次（正職不扣薪）"},
+    {"name": "小李", "type": "正職", "base": 38000, "late": 0, "leave": 0, "hours": 0, "total": 38000, "note": "全勤"},
+    {"name": "小張", "type": "PT", "base": "196/hr", "late": 1, "leave": 0, "hours": 88, "total": 17248, "note": "總計工時 88 小時，遲到1次"},
+    {"name": "小陳", "type": "PT", "base": "196/hr", "late": 0, "leave": 2, "hours": 72, "total": 14112, "note": "請假2天，總計工時 72 小時"},
+    {"name": "小林", "type": "PT", "base": "196/hr", "late": 3, "leave": 0, "hours": 95, "total": 18620, "note": "總計工時 95 小時，遲到3次"}
+]
 
 @app.route("/")
 def home():
@@ -18,147 +39,87 @@ def home():
 
 @app.route("/dashboard")
 def dashboard():
-    # 將 face_db 傳到前端，用來判斷誰已經登錄過人臉
-    return render_template("dashboard.html", employees=employee_db, registered_faces=list(face_db.keys()))
+    return render_template("dashboard.html", 
+                           employees=employee_db, 
+                           registered_faces=list(face_db.keys()), 
+                           records=clockin_records, 
+                           schedule=schedule_data)
 
-@app.route("/add_employee", methods=["POST"])
-def add_employee():
-    if len(employee_db) >= 5:
-        return jsonify({"status": "upgrade_needed", "message": "您目前使用的是體驗版（限5人），升級標準版即可解鎖無上限功能！"})
-    else:
-        new_name = request.form.get("name")
-        if new_name and new_name not in employee_db:
-            employee_db.append(new_name)
-        return jsonify({"status": "success", "message": "新增成功"})
-
-@app.route("/delete_employee/<name>", methods=["POST"])
-def delete_employee(name):
-    if name in employee_db:
-        employee_db.remove(name)
-        if name in face_db:
-            del face_db[name] # 同時刪除人臉資料
-        return jsonify({"status": "success", "message": f"已成功將員工「{name}」刪除。"})
-    return jsonify({"status": "error", "message": "找不到該員工。"})
-
-# [新增] 後台登錄人臉 API
-@app.route("/register_face", methods=["POST"])
-def register_face():
-    name = request.form.get("name")
-    image_data = request.form.get("image")
-    if not name or not image_data:
-        return jsonify({"status": "error", "message": "資料不完整"})
-    
-    face_db[name] = image_data
-    return jsonify({"status": "success", "message": f"✅ 已成功登錄 {name} 的人臉資料！"})
-
-@app.route("/clockin")
-def clockin_page():
-    return render_template("clockin.html", employees=employee_db)
-
-# [升級] 前台打卡 API (結合 OpenAI Vision 比對)
-@app.route("/api/do_clockin", methods=["POST"])
-def do_clockin():
-    emp_name = request.form.get("name")
-    lat = request.form.get("lat")
-    lng = request.form.get("lng")
-    current_image = request.form.get("image") # 打卡當下拍的照片
-
-    if emp_name not in face_db:
-        return jsonify({"status": "error", "message": f"❌ {emp_name} 尚未登錄人臉，請店長先至後台完成登錄。"})
-
-    registered_image = face_db[emp_name] # 取出後台註冊的照片
-
-    try:
-        # 呼叫 OpenAI Vision API 進行人臉比對
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": "你是一個人臉辨識系統。請嚴格比對這兩張圖片中的人臉。如果是同一個人，請只回答 'YES'；如果不是同一個人或沒有看到人臉，請只回答 'NO'。"},
-                        {"type": "image_url", "image_url": {"url": registered_image}},
-                        {"type": "image_url", "image_url": {"url": current_image}}
-                    ]
-                }
-            ],
-            max_tokens=10
-        )
-        result = response.choices[0].message.content.strip().upper()
-
-        if "YES" in result:
-            return jsonify({"status": "success", "message": f"✅ {emp_name} 人臉辨識成功！\n經緯度: {lat}, {lng}"})
-        else:
-            return jsonify({"status": "error", "message": f"🚨 辨識失敗！這不是 {emp_name} 的臉，拒絕打卡。"})
-
-    except Exception as e:
-        return jsonify({"status": "error", "message": "❌ AI 辨識發生錯誤，請確認 API 狀態。"})
-
-@app.route("/generate_schedule", methods=["POST"])
-def generate_schedule():
-    prompt = request.form.get("prompt")
-    # 將現有員工名單寫入提示詞，禁止 AI 瞎編
-    employee_str = ", ".join(employee_db)
-    system_prompt = f"""你是一個排班調度顧問。
-    目前店內的合法員工清單為：{employee_str}。
-    你在給予調度建議時，嚴格禁止提到清單以外的人名。
-    如果需要調度，請只從這份名單中挑選可用的員工，並解釋原因。"""
-    
-    try:
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": prompt}
-            ]
-        )
-        return jsonify({"schedule": response.choices[0].message.content})
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# app.py 增加的部分
-from datetime import datetime
-
-# 存儲打卡紀錄: [{"name": "小王", "time": "2026-06-26 09:15", "shift": "早班"}]
-clockin_records = []
-
-# 排班資料 (持久化儲存用字典)
-schedule_data = {
-    "早班": [""] * 7, # 7天
-    "晚班": [""] * 7
-}
-
-@app.route("/api/do_clockin", methods=["POST"])
-def do_clockin():
-    emp_name = request.form.get("name")
-    now = datetime.now()
-    hour = now.hour
-    
-    # 自動判斷班別
-    shift = "晚班" if 14 <= hour < 22 else "早班"
-    
-    clockin_records.append({
-        "name": emp_name,
-        "time": now.strftime("%Y-%m-%d %H:%M:%S"),
-        "shift": shift
-    })
-    return jsonify({"status": "success", "message": f"✅ {emp_name} 打卡成功！\n判定為：{shift}"})
+@app.route("/salary")
+def salary():
+    return render_template("salary.html", summary=salary_summary, records=clockin_records)
 
 @app.route("/save_schedule", methods=["POST"])
 def save_schedule():
     global schedule_data
-    schedule_data = request.json # 接收前端傳來的表格數據
+    schedule_data = request.json
     return jsonify({"status": "success"})
+
+# 核心修正：唯一保留的打卡 API，自動抓取當前時間判定早晚班與遲到
+@app.route("/api/do_clockin", methods=["POST"])
+def do_clockin():
+    # 支援前端傳送 JSON 或 FormData 兩種格式，提高容錯率
+    if request.is_json:
+        data = request.json
+        emp_name = data.get("name")
+    else:
+        emp_name = request.form.get("name")
+        
+    if not emp_name:
+        return jsonify({"status": "error", "message": "未選擇員工姓名"})
+
+    now = datetime.now()
+    time_str = now.strftime("%H:%M")
+    hour = now.hour
+    minute = now.minute
+
+    # 自動時間與班別判定邏輯
+    # 早班: 09:00~18:00，晚班: 14:00~22:00
+    if 14 <= hour < 22:
+        shift = "晚班"
+        status = "遲到" if (hour == 14 and minute > 0) or hour > 14 else "正常"
+    else:
+        shift = "早班"
+        status = "遲到" if (hour == 9 and minute > 0) or hour > 9 else "正常"
+
+    new_record = {"name": emp_name, "time": time_str, "shift": shift, "status": status}
+    clockin_records.insert(0, new_record) # 讓最新的打卡紀錄排在最上面
+
+    return jsonify({
+        "status": "success", 
+        "message": f"🎉 {emp_name} 打卡成功！\n時間：{time_str} ({shift}・{status})"
+    })
+
+@app.route("/register_face", methods=["POST"])
+def register_face():
+    face_db[request.form.get("name")] = request.form.get("image")
+    return jsonify({"status": "success", "message": "人臉已登錄"})
+
+@app.route("/add_employee", methods=["POST"])
+def add_employee():
+    name = request.form.get("name")
+    if name and name not in employee_db: 
+        employee_db.append(name)
+    return jsonify({"status": "success"})
+
+@app.route("/delete_employee/<name>", methods=["POST"])
+def delete_employee(name):
+    if name in employee_db: 
+        employee_db.remove(name)
+    return jsonify({"status": "success"})
+
+@app.route("/generate_schedule", methods=["POST"])
+def generate_schedule():
+    prompt = request.form.get("prompt")
+    system_prompt = f"合法員工: {', '.join(employee_db)}。只能挑選名單內的人。"
+    resp = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}])
+    return jsonify({"schedule": resp.choices[0].message.content})
 
 @app.route("/generate_handover", methods=["POST"])
 def generate_handover():
     prompt = request.form.get("prompt")
-    system_prompt = "請將員工口語化的交接內容整理成專業日誌。標籤：「⚠️ 待辦事項」、「🔧 設備報修」、「📝 營運紀錄」。"
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}]
-    )
-    return jsonify({"handover_log": response.choices[0].message.content})
+    resp = client.chat.completions.create(model="gpt-4o-mini", messages=[{"role": "user", "content": f"整理此交接日誌: {prompt}"}])
+    return jsonify({"handover_log": resp.choices[0].message.content})
 
 if __name__ == "__main__":
     app.run(debug=True)
