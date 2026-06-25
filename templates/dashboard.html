@@ -13,7 +13,7 @@
         
         .btn { padding: 10px 18px; background-color: #1a73e8; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-right: 5px; transition: 0.2s;}
         .btn:hover { background-color: #1557b0; }
-        .btn-danger { background-color: #e74c3c; padding: 6px 12px; font-size: 13px; margin-left: 10px; }
+        .btn-danger { background-color: #e74c3c; padding: 6px 12px; font-size: 13px; margin-left: 10px; border-radius: 4px;}
         .btn-danger:hover { background-color: #c0392b; }
         .btn-ai { background-color: #8e44ad; }
         .btn-ai:hover { background-color: #732d91; }
@@ -21,7 +21,7 @@
         .btn-voice:hover { background-color: #d68910; }
         
         input[type="text"], textarea { width: 100%; box-sizing: border-box; padding: 12px; margin-bottom: 12px; border: 1px solid #ddd; border-radius: 6px; font-family: inherit;}
-        ul.emp-list { list-style-type: none; padding: 0; }
+        ul.emp-list { list-style-type: none; padding: 0; margin-bottom: 15px;}
         ul.emp-list li { background: #f8f9fa; margin: 8px 0; padding: 12px 15px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #eee;}
         
         table.schedule-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 15px;}
@@ -43,20 +43,19 @@
         <ul class="emp-list" id="employee-list">
             {% for emp in employees %}
                 <li>
-                    <span>{{ emp }}</span>
-                    <button class="btn btn-danger" onclick="deleteEmployee('{{ emp }}')">刪除</button>
+                    <span>👤 {{ emp }}</span>
+                    <button class="btn btn-danger" onclick="deleteEmployee('{{ emp }}')">刪除員工</button>
                 </li>
             {% endfor %}
         </ul>
         <div style="margin-top: 20px; display: flex;">
-            <input type="text" id="new-employee-name" placeholder="輸入新員工姓名..." style="width: 75%; margin-right: 15px; margin-bottom: 0;">
+            <input type="text" id="new-employee-name" placeholder="輸入新進員工姓名..." style="width: 75%; margin-right: 15px; margin-bottom: 0;">
             <button class="btn" onclick="addEmployee()" style="width: 25%;">新增員工</button>
         </div>
     </div>
 
     <div class="card">
         <h2>本週手動排班表</h2>
-        <p style="font-size: 14px; color: #7f8c8d; margin-top: 0;">提示：點擊下方表格空白處即可直接輸入員工姓名進行排班。</p>
         <table class="schedule-table">
             <thead>
                 <tr>
@@ -65,11 +64,11 @@
             </thead>
             <tbody>
                 <tr>
-                    <td><strong>早班 (09:00-15:00)</strong></td>
+                    <td><strong>早班</strong></td>
                     <td contenteditable="true">小王</td><td contenteditable="true"></td><td contenteditable="true">小林</td><td contenteditable="true"></td><td contenteditable="true">小陳</td><td contenteditable="true"></td><td contenteditable="true"></td>
                 </tr>
                 <tr>
-                    <td><strong>晚班 (15:00-21:00)</strong></td>
+                    <td><strong>晚班</strong></td>
                     <td contenteditable="true"></td><td contenteditable="true">小李</td><td contenteditable="true"></td><td contenteditable="true">小張</td><td contenteditable="true"></td><td contenteditable="true">小王</td><td contenteditable="true"></td>
                 </tr>
             </tbody>
@@ -77,16 +76,14 @@
     </div>
 
     <div class="card">
-        <h2>AI 排班調度顧問 (OpenAI 整合)</h2>
-        <p style="font-size: 14px; color: #7f8c8d; margin-top: 0;">遇到突發請假排不出班？讓 AI 輔助調度：</p>
+        <h2>AI 排班調度顧問 (OpenAI)</h2>
         <textarea id="ai-prompt-schedule" rows="2" placeholder="例如：小李這週三確診請假，早班原本只有他一個人，現在該怎麼調度比較好？"></textarea>
         <button class="btn btn-ai" onclick="consultAI()">詢問 AI 顧問</button>
         <div id="ai-result-schedule" class="ai-result"></div>
     </div>
 
     <div class="card">
-        <h2>語音交接日誌總結 (OpenAI 整合)</h2>
-        <p style="font-size: 14px; color: #7f8c8d; margin-top: 0;">下班口頭碎碎念，AI 自動轉化為專業交接日誌：</p>
+        <h2>語音交接日誌總結 (OpenAI)</h2>
         <textarea id="ai-prompt-handover" rows="4" placeholder="請輸入語音辨識的口語文字..."></textarea>
         <div style="margin-top: 10px;">
             <button class="btn btn-voice" onclick="simulateVoiceInput()">模擬語音輸入</button>
@@ -105,13 +102,13 @@
         fetch("/add_employee", { method: "POST", body: formData })
         .then(response => response.json())
         .then(data => {
-            if (data.status === "upgrade_needed") { alert("方案限制提示\n\n" + data.message); } 
-            else { alert(data.message); window.location.reload(); }
+            if (data.status === "upgrade_needed") { alert("💎 方案限制提示 💎\n\n" + data.message); } 
+            else { window.location.reload(); }
         });
     }
 
     function deleteEmployee(name) {
-        if (!confirm(`確定要刪除員工「${name}」嗎？`)) return;
+        if (!confirm(`店長您好，確定要刪除員工「${name}」的資料嗎？`)) return;
         fetch(`/delete_employee/${name}`, { method: "POST" })
         .then(response => response.json())
         .then(data => {
@@ -123,46 +120,31 @@
     function consultAI() {
         const prompt = document.getElementById("ai-prompt-schedule").value;
         const resultDiv = document.getElementById("ai-result-schedule");
-        if (!prompt) { alert("請輸入你遇到的排班困難！"); return; }
-        
-        resultDiv.style.display = "block";
-        resultDiv.innerText = "處理中，請稍候...";
-        let formData = new FormData();
-        formData.append("prompt", prompt);
+        if (!prompt) return;
+        resultDiv.style.display = "block"; resultDiv.innerText = "處理中，請稍候...";
+        let formData = new FormData(); formData.append("prompt", prompt);
         fetch("/generate_schedule", { method: "POST", body: formData })
         .then(response => response.json())
-        .then(data => { resultDiv.innerText = "AI 顧問建議：\n\n" + data.schedule; })
-        .catch(error => { resultDiv.innerText = "發生錯誤，請確認 API Key。"; });
+        .then(data => { resultDiv.innerText = "💡 AI 顧問建議：\n\n" + data.schedule; });
     }
 
     function simulateVoiceInput() {
         const textToType = "那個明天早班注意一下，今天下午兩桌客人打翻飲料，衛生紙跟抹布用很兇，記得去庫房補貨。然後牛奶快沒了，明天廠商來記得叫三箱。對了，靠窗那邊的冷氣在滴水，要找師傅來看一下。";
         const textarea = document.getElementById("ai-prompt-handover");
-        textarea.value = "";
-        let i = 0;
-        function typeWriter() {
-            if (i < textToType.length) {
-                textarea.value += textToType.charAt(i);
-                i++;
-                setTimeout(typeWriter, 30); 
-            }
-        }
+        textarea.value = ""; let i = 0;
+        function typeWriter() { if (i < textToType.length) { textarea.value += textToType.charAt(i); i++; setTimeout(typeWriter, 30); } }
         typeWriter();
     }
 
     function generateHandover() {
         const prompt = document.getElementById("ai-prompt-handover").value;
         const resultDiv = document.getElementById("ai-result-handover");
-        if (!prompt) { alert("請先輸入交接內容或點擊模擬語音輸入！"); return; }
-        
-        resultDiv.style.display = "block";
-        resultDiv.innerText = "處理中，請稍候...";
-        let formData = new FormData();
-        formData.append("prompt", prompt);
+        if (!prompt) return;
+        resultDiv.style.display = "block"; resultDiv.innerText = "處理中，請稍候...";
+        let formData = new FormData(); formData.append("prompt", prompt);
         fetch("/generate_handover", { method: "POST", body: formData })
         .then(response => response.json())
-        .then(data => { resultDiv.innerHTML = "<strong>專業交接日誌：</strong><br><br>" + data.handover_log; })
-        .catch(error => { resultDiv.innerText = "發生錯誤，請確認 API Key。"; });
+        .then(data => { resultDiv.innerHTML = "<strong>📋 專業交接日誌：</strong><br><br>" + data.handover_log; });
     }
 </script>
 
