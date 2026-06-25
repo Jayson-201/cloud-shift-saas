@@ -44,8 +44,8 @@
     <h1>店長營運與人事管理後台</h1>
 
     <div class="card">
-        <h2>員工名單管理 (方案：體驗版 限5人)</h2>
-        <ul class="emp-list" id="employee-list">
+        <h2>員工名單管理</h2>
+        <ul class="emp-list">
             {% for emp in employees %}
                 <li>
                     <span>👤 {{ emp }} 
@@ -57,37 +57,56 @@
             {% endfor %}
         </ul>
         <div style="margin-top: 20px; display: flex;">
-            <input type="text" id="new-employee-name" placeholder="輸入新進員工姓名..." style="width: 75%; margin-right: 15px; margin-bottom: 0;">
-            <button class="btn" onclick="addEmployee()" style="width: 25%;">新增員工</button>
+            <input type="text" id="new-employee-name" placeholder="輸入新進員工姓名...">
+            <button class="btn" onclick="addEmployee()">新增員工</button>
         </div>
     </div>
 
     <div class="card">
-        <h2>本週手動排班表</h2>
+        <h2>今日打卡紀錄</h2>
         <table class="schedule-table">
-            <thead><tr><th>班別</th><th>星期一</th><th>星期二</th><th>星期三</th><th>星期四</th><th>星期五</th><th>星期六</th><th>星期日</th></tr></thead>
+            <thead><tr><th>姓名</th><th>時間</th><th>班別</th></tr></thead>
             <tbody>
-                <tr><td><strong>早班</strong></td><td contenteditable="true">小王</td><td contenteditable="true"></td><td contenteditable="true">小林</td><td contenteditable="true"></td><td contenteditable="true">小陳</td><td contenteditable="true"></td><td contenteditable="true"></td></tr>
-                <tr><td><strong>晚班</strong></td><td contenteditable="true"></td><td contenteditable="true">小李</td><td contenteditable="true"></td><td contenteditable="true">小張</td><td contenteditable="true"></td><td contenteditable="true">小王</td><td contenteditable="true"></td></tr>
+                {% for r in records %}
+                <tr><td>{{r.name}}</td><td>{{r.time}}</td><td>{{r.shift}}</td></tr>
+                {% endfor %}
             </tbody>
         </table>
     </div>
 
     <div class="card">
+        <h2>本週手動排班表</h2>
+        <table id="schedule-table" class="schedule-table">
+            <tr><th>班別</th><th>一</th><th>二</th><th>三</th><th>四</th><th>五</th><th>六</th><th>日</th></tr>
+            <tr><td>早班</td>
+                {% for i in range(7) %}<td contenteditable="true">{{schedule['早班'][i]}}</td>{% endfor %}
+            </tr>
+            <tr><td>晚班</td>
+                {% for i in range(7) %}<td contenteditable="true">{{schedule['晚班'][i]}}</td>{% endfor %}
+            </tr>
+        </table>
+        <button class="btn" style="margin-top:15px;" onclick="saveSchedule()">💾 儲存排班表</button>
+    </div>
+
+    <div class="card">
         <h2>AI 排班調度顧問 (OpenAI)</h2>
-        <textarea id="ai-prompt-schedule" rows="2" placeholder="例如：小李這週三確診請假，早班原本只有他一個人，現在該怎麼調度比較好？"></textarea>
+        <textarea id="ai-prompt-schedule" rows="2" placeholder="輸入狀況..."></textarea>
         <button class="btn btn-ai" onclick="consultAI()">詢問 AI 顧問</button>
         <div id="ai-result-schedule" class="ai-result"></div>
     </div>
 
-    <div class="card">
+    <div class="card" style="border-top: 4px solid #f39c12;">
         <h2>語音交接日誌總結 (OpenAI)</h2>
-        <textarea id="ai-prompt-handover" rows="4" placeholder="請輸入語音辨識的口語文字..."></textarea>
-        <div style="margin-top: 10px;">
-            <button class="btn btn-voice" onclick="simulateVoiceInput()">🎤 語音輸入</button>
-            <button class="btn btn-ai" onclick="generateHandover()">產生專業交接日誌</button>
-        </div>
+        <textarea id="ai-prompt-handover" rows="4"></textarea>
+        <button class="btn btn-voice" onclick="simulateVoiceInput()">🎤 語音輸入</button>
+        <button class="btn btn-ai" onclick="generateHandover()">產生專業交接日誌</button>
         <div id="ai-result-handover" class="ai-result"></div>
+    </div>
+
+    <div class="card" style="border-top: 4px solid #8e44ad; text-align: center;">
+        <h3>需要更多進階功能？</h3>
+        <p style="font-size:14px; color:#666;">升級標準版/企業版解鎖無上限管理與客製化服務</p>
+        <button class="btn" onclick="alert('聯絡業務專線: 0800-XXX-XXX')">查看完整升級方案</button>
     </div>
 </div>
 
@@ -95,39 +114,37 @@
     <h3 id="register-title"></h3>
     <video id="video-register" autoplay playsinline></video>
     <canvas id="canvas-register" style="display:none;"></canvas>
-    <div style="margin-top: 15px;">
-        <button class="btn btn-face" onclick="captureAndRegister()" style="padding: 10px 20px;">✅ 拍照並儲存</button>
-        <button class="btn btn-danger" onclick="closeCamera()">取消</button>
-    </div>
+    <button class="btn btn-face" onclick="captureAndRegister()">✅ 儲存人臉</button>
+    <button class="btn btn-danger" onclick="closeCamera()">取消</button>
 </div>
 
 <script>
     function addEmployee() {
-        const nameInput = document.getElementById("new-employee-name").value;
-        if (!nameInput) { alert("請輸入員工姓名！"); return; }
-        let formData = new FormData(); formData.append("name", nameInput);
-        fetch("/add_employee", { method: "POST", body: formData })
-        .then(response => response.json())
-        .then(data => { if (data.status === "upgrade_needed") alert("💎 方案限制提示 💎\n\n" + data.message); else window.location.reload(); });
+        let name = document.getElementById("new-employee-name").value;
+        if (!name) return;
+        let fd = new FormData(); fd.append("name", name);
+        fetch("/add_employee", { method: "POST", body: fd }).then(() => window.location.reload());
     }
 
     function deleteEmployee(name) {
-        if (!confirm(`確定要刪除員工「${name}」嗎？`)) return;
-        fetch(`/delete_employee/${name}`, { method: "POST" })
-        .then(response => response.json())
-        .then(data => { alert(data.message); window.location.reload(); });
+        if (!confirm("確定刪除?")) return;
+        fetch(`/delete_employee/${name}`, { method: "POST" }).then(() => window.location.reload());
     }
-    
-    let registerStream = null;
-    let currentRegisterName = "";
+
+    function saveSchedule() {
+        let table = document.getElementById("schedule-table");
+        let data = {"早班": [], "晚班": []};
+        for(let i=1; i<8; i++) data["早班"].push(table.rows[1].cells[i].innerText);
+        for(let i=1; i<8; i++) data["晚班"].push(table.rows[2].cells[i].innerText);
+        fetch("/save_schedule", {method: "POST", headers: {'Content-Type': 'application/json'}, body: JSON.stringify(data)})
+        .then(() => alert("儲存成功！"));
+    }
 
     function openRegisterCamera(name) {
         currentRegisterName = name;
-        document.getElementById("register-title").innerText = `為「${name}」登錄人臉`;
         document.getElementById("camera-modal").style.display = "block";
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-            .then(stream => { registerStream = stream; document.getElementById("video-register").srcObject = stream; })
-            .catch(err => { alert("無法開啟相機。"); closeCamera(); });
+            .then(stream => { registerStream = stream; document.getElementById("video-register").srcObject = stream; });
     }
 
     function closeCamera() {
@@ -140,47 +157,27 @@
         const canvas = document.getElementById("canvas-register");
         canvas.width = video.videoWidth; canvas.height = video.videoHeight;
         canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
-        const base64Image = canvas.toDataURL("image/jpeg");
-        closeCamera();
-        let formData = new FormData(); formData.append("name", currentRegisterName); formData.append("image", base64Image);
-        fetch("/register_face", { method: "POST", body: formData })
-        .then(response => response.json())
-        .then(data => { alert(data.message); window.location.reload(); });
-    }
-
-    function consultAI() { 
-        const prompt = document.getElementById("ai-prompt-schedule").value;
-        const resultDiv = document.getElementById("ai-result-schedule");
-        if (!prompt) return;
-        resultDiv.style.display = "block"; resultDiv.innerText = "⏳ 處理中，請稍候...";
-        let formData = new FormData(); formData.append("prompt", prompt);
-        fetch("/generate_schedule", { method: "POST", body: formData })
-        .then(response => response.json())
-        .then(data => { resultDiv.innerText = "💡 AI 顧問建議：\n\n" + data.schedule; });
+        let fd = new FormData(); fd.append("name", currentRegisterName); fd.append("image", canvas.toDataURL("image/jpeg"));
+        fetch("/register_face", { method: "POST", body: fd }).then(() => window.location.reload());
     }
 
     function simulateVoiceInput() {
-        const textarea = document.getElementById("ai-prompt-handover");
-        const btn = document.querySelector(".btn-voice");
-        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
-            const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-            recognition.lang = 'zh-TW';
-            recognition.onstart = () => { btn.innerText = "🔴 錄音中..."; btn.style.backgroundColor = "#e74c3c"; textarea.value = ""; };
-            recognition.onresult = (event) => { textarea.value = event.results[0][0].transcript; };
-            recognition.onend = () => { btn.innerText = "🎤 語音輸入"; btn.style.backgroundColor = "#f39c12"; };
-            recognition.start();
-        } else { alert("瀏覽器不支援語音辨識"); }
+        if ('webkitSpeechRecognition' in window) {
+            let rec = new webkitSpeechRecognition();
+            rec.lang = 'zh-TW';
+            rec.onstart = () => document.querySelector(".btn-voice").innerText = "🔴 錄音中...";
+            rec.onresult = (e) => document.getElementById("ai-prompt-handover").value = e.results[0][0].transcript;
+            rec.onend = () => document.querySelector(".btn-voice").innerText = "🎤 語音輸入";
+            rec.start();
+        } else { alert("瀏覽器不支援"); }
     }
-
-    function generateHandover() { 
-        const prompt = document.getElementById("ai-prompt-handover").value;
-        const resultDiv = document.getElementById("ai-result-handover");
-        if (!prompt) return;
-        resultDiv.style.display = "block"; resultDiv.innerText = "⏳ 處理中，請稍候...";
-        let formData = new FormData(); formData.append("prompt", prompt);
-        fetch("/generate_handover", { method: "POST", body: formData })
-        .then(response => response.json())
-        .then(data => { resultDiv.innerHTML = "<strong>📋 專業交接日誌：</strong><br><br>" + data.handover_log; });
+    
+    function generateHandover() {
+        let prompt = document.getElementById("ai-prompt-handover").value;
+        document.getElementById("ai-result-handover").style.display = "block";
+        let fd = new FormData(); fd.append("prompt", prompt);
+        fetch("/generate_handover", { method: "POST", body: fd })
+        .then(r => r.json()).then(d => document.getElementById("ai-result-handover").innerHTML = d.handover_log);
     }
 </script>
 </body>
