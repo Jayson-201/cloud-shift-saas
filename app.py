@@ -116,6 +116,40 @@ def generate_schedule():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+# app.py 增加的部分
+from datetime import datetime
+
+# 存儲打卡紀錄: [{"name": "小王", "time": "2026-06-26 09:15", "shift": "早班"}]
+clockin_records = []
+
+# 排班資料 (持久化儲存用字典)
+schedule_data = {
+    "早班": [""] * 7, # 7天
+    "晚班": [""] * 7
+}
+
+@app.route("/api/do_clockin", methods=["POST"])
+def do_clockin():
+    emp_name = request.form.get("name")
+    now = datetime.now()
+    hour = now.hour
+    
+    # 自動判斷班別
+    shift = "晚班" if 14 <= hour < 22 else "早班"
+    
+    clockin_records.append({
+        "name": emp_name,
+        "time": now.strftime("%Y-%m-%d %H:%M:%S"),
+        "shift": shift
+    })
+    return jsonify({"status": "success", "message": f"✅ {emp_name} 打卡成功！\n判定為：{shift}"})
+
+@app.route("/save_schedule", methods=["POST"])
+def save_schedule():
+    global schedule_data
+    schedule_data = request.json # 接收前端傳來的表格數據
+    return jsonify({"status": "success"})
+
 @app.route("/generate_handover", methods=["POST"])
 def generate_handover():
     prompt = request.form.get("prompt")
