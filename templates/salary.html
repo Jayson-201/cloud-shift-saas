@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>店長後台 - 月度薪水試算</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .card { background-color: white; padding: 25px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); margin-bottom: 25px; border-top: 4px solid #27ae60;}
+        h1 { color: #2c3e50; margin-bottom: 10px; text-align: center;}
+        p.subtitle { text-align: center; color: #666; margin-bottom: 30px; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 15px;}
+        table th, table td { border: 1px solid #e0e0e0; padding: 14px; text-align: center; }
+        table th { background-color: #f8f9fa; color: #333; font-weight: 600;}
+        .badge-full { background-color: #2ecc71; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        .badge-pt { background-color: #3498db; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px; }
+        
+        .btn-nav { display: inline-block; padding: 10px 20px; background-color: #1a73e8; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; margin-right: 10px; }
+        .btn-nav-secondary { background-color: #7f8c8d; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>📊 月度營運薪水試算報表</h1>
+    <p class="subtitle">系統自動統整打卡出勤數據，實現一鍵自動算薪（基本時薪：$196/hr、正職月薪：$38,000）</p>
+
+    <!-- 薪資試算主表 -->
+    <div class="card">
+        <h2>本月員工薪資總結 (2正職 + 3PT)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>員工姓名</th>
+                    <th>身分類型</th>
+                    <th>薪資計算基準</th>
+                    <th>本月遲到次數</th>
+                    <th>本月請假次數</th>
+                    <th>總累計工時</th>
+                    <th>本月應發薪資</th>
+                    <th>出勤與備註說明</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in summary %}
+                <tr>
+                    <td><strong>{{ row.name }}</strong></td>
+                    <td>
+                        {% if row.type == '正職' %}
+                        <span class="badge-full">正職</span>
+                        {% else %}
+                        <span class="badge-pt">PT</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ row.base }}</td>
+                    <td style="color: {% if row.late > 0 %}#e74c3c{% else %}#333{% endif %}; font-weight: {% if row.late > 0 %}bold{% else %}normal{% endif %};">{{ row.late }} 次</td>
+                    <td>{{ row.leave }} 天</td>
+                    <td>{{ row.hours }} hrs</td>
+                    <td style="color: #27ae60; font-weight: bold; font-size: 16px;">NT$ {{ "{:,}".format(row.total) }}</td>
+                    <td style="text-align: left; font-size: 13px; color: #555;">{{ row.note }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 即時打卡查核對照流水帳 -->
+    <div class="card" style="border-top-color: #3498db;">
+        <h2>當前即時打卡流水帳 (用作薪資複核)</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>打卡同仁</th>
+                    <th>系統抓取時間</th>
+                    <th>自動判定班別</th>
+                    <th>出勤狀態</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in records %}
+                <tr>
+                    <td>{{ r.name }}</td>
+                    <td><strong>{{ r.time }}</strong></td>
+                    <td>{{ r.shift }} (顯示當日打卡)</td>
+                    <td>
+                        {% if r.status == '遲到' %}
+                        <span style="color: #e74c3c; font-weight: bold;">⚠️ 遲到</span>
+                        {% else %}
+                        <span style="color: #27ae60;">✅ 正常</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <div style="margin-top: 30px; text-align: center;">
+        <a href="/dashboard" class="btn-nav">返回店長管理後台</a>
+        <a href="/" class="btn-nav btn-nav-secondary">返回系統首頁</a>
+    </div>
+</div>
+
+</body>
+</html>
