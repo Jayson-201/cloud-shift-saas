@@ -4,93 +4,38 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>行動打卡與排班管理</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            padding: 0;
-            background-color: #f8f9fa;
-            color: #333;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-        }
-        .container {
-            background-color: white;
-            padding: 50px 60px;
-            border-radius: 12px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-            text-align: center;
-            max-width: 600px;
-            width: 90%;
-        }
-        h1 {
-            color: #1a73e8;
-            font-size: 32px;
-            margin-bottom: 15px;
-            font-weight: 600;
-        }
-        p.subtitle {
-            color: #5f6368;
-            font-size: 18px;
-            margin-bottom: 40px;
-            line-height: 1.5;
-        }
-        .btn-group {
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-        .btn {
-            display: inline-block;
-            padding: 14px 28px;
-            font-size: 16px;
-            font-weight: 600;
-            text-decoration: none;
-            border-radius: 8px;
-            transition: all 0.3s ease;
-            width: 200px;
-        }
-        .btn-primary {
-            background-color: #1a73e8;
-            color: white;
-            border: 2px solid #1a73e8;
-        }
-        .btn-primary:hover {
-            background-color: #1557b0;
-            border-color: #1557b0;
-        }
-        .btn-outline {
-            background-color: white;
-            color: #1a73e8;
-            border: 2px solid #1a73e8;
-        }
-        .btn-outline:hover {
-            background-color: #f8f9fa;
-        }
-        .footer-note {
-            margin-top: 40px;
-            font-size: 14px;
-            color: #9aa0a6;
-        }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div class="container">
-        <h1>行動打卡與排班管理</h1>
-        <p class="subtitle">告別紙本打卡鐘，智慧化處理人事排班與交接日誌，提升店鋪營運效率。</p>
+<body class="bg-slate-50 min-h-screen flex flex-col items-center p-6">
+
+    <!-- 主體內容 -->
+    <div class="flex-grow flex flex-col items-center justify-center text-center">
+        <h1 class="text-4xl font-bold text-blue-900 mb-6">行動打卡與排班管理系統</h1>
+        <p class="text-xl text-gray-600 mb-10 max-w-2xl">專為微型實體店打造，結合 GPS 防弊打卡、AI 輔助排班與語音交接，一鍵提升營運效率。</p>
         
-        <div class="btn-group">
-            <a href="/clockin" class="btn btn-outline">進入員工打卡前台</a>
-            <a href="/dashboard" class="btn btn-primary">進入店長管理後台</a>
-        </div>
-        
-        <div class="footer-note">
-            期末專案系統測試・已成功連線至雲端伺服器
+        <div class="flex gap-4">
+            <a href="/clockin" class="px-8 py-4 bg-white border-2 border-blue-600 text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition">員工打卡前台</a>
+            <a href="/dashboard" class="px-8 py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition">進入店長管理後台</a>
         </div>
     </div>
+
+    <!-- 方案升級區 (底部) -->
+    <div class="w-full max-w-4xl mt-16 border-t pt-10">
+        <h3 class="text-center text-gray-500 mb-6 font-medium">目前為體驗版方案 (限5人)</h3>
+        <div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+            <div class="p-4 border rounded-lg bg-white text-center">
+                <p class="font-bold">標準版 (Standard)</p>
+                <p class="text-sm text-gray-500">$699/月</p>
+            </div>
+            <div class="p-4 border rounded-lg bg-white text-center">
+                <p class="font-bold">企業版 (Pro)</p>
+                <p class="text-sm text-gray-500">$1,499/月</p>
+            </div>
+            <div class="col-span-2 md:col-span-1">
+                <button class="w-full h-full bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 transition">方案升級諮詢</button>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
