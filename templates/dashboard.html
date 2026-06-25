@@ -43,6 +43,10 @@
 <div class="dashboard-container">
     <h1>店長營運與人事管理後台</h1>
 
+    <div style="margin-bottom: 25px; text-align: right;">
+        <a href="/salary" class="btn" style="background-color: #27ae60; text-decoration: none; display: inline-block; padding: 12px 24px; font-size: 15px;">📊 前往月度薪水試算報表</a>
+    </div>
+
     <div class="card">
         <h2>員工名單管理</h2>
         <ul class="emp-list">
@@ -56,9 +60,9 @@
                 </li>
             {% endfor %}
         </ul>
-        <div style="margin-top: 20px; display: flex;">
-            <input type="text" id="new-employee-name" placeholder="輸入新進員工姓名...">
-            <button class="btn" onclick="addEmployee()">新增員工</button>
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <input type="text" id="new-employee-name" placeholder="輸入新進員工姓名..." style="margin-bottom: 0;">
+            <button class="btn" onclick="addEmployee()" style="white-space: nowrap;">新增員工</button>
         </div>
     </div>
 
@@ -97,9 +101,11 @@
 
     <div class="card" style="border-top: 4px solid #f39c12;">
         <h2>語音交接日誌總結 (OpenAI)</h2>
-        <textarea id="ai-prompt-handover" rows="4"></textarea>
-        <button class="btn btn-voice" onclick="simulateVoiceInput()">🎤 語音輸入</button>
-        <button class="btn btn-ai" onclick="generateHandover()">產生專業交接日誌</button>
+        <textarea id="ai-prompt-handover" rows="4" placeholder="請點擊麥克風開始說話..."></textarea>
+        <div style="margin-top: 10px;">
+            <button class="btn btn-voice" onclick="simulateVoiceInput()">🎤 語音輸入</button>
+            <button class="btn btn-ai" onclick="generateHandover()">產生專業交接日誌</button>
+        </div>
         <div id="ai-result-handover" class="ai-result"></div>
     </div>
 
@@ -114,11 +120,17 @@
     <h3 id="register-title"></h3>
     <video id="video-register" autoplay playsinline></video>
     <canvas id="canvas-register" style="display:none;"></canvas>
-    <button class="btn btn-face" onclick="captureAndRegister()">✅ 儲存人臉</button>
-    <button class="btn btn-danger" onclick="closeCamera()">取消</button>
+    <div style="margin-top: 15px;">
+        <button class="btn btn-face" onclick="captureAndRegister()">✅ 儲存人臉</button>
+        <button class="btn btn-danger" onclick="closeCamera()">取消</button>
+    </div>
 </div>
 
 <script>
+    // 定義全局變數避免報錯
+    let registerStream = null;
+    let currentRegisterName = "";
+
     function addEmployee() {
         let name = document.getElementById("new-employee-name").value;
         if (!name) return;
@@ -142,6 +154,7 @@
 
     function openRegisterCamera(name) {
         currentRegisterName = name;
+        document.getElementById("register-title").innerText = `為「${name}」登錄人臉`;
         document.getElementById("camera-modal").style.display = "block";
         navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
             .then(stream => { registerStream = stream; document.getElementById("video-register").srcObject = stream; });
@@ -162,22 +175,38 @@
     }
 
     function simulateVoiceInput() {
-        if ('webkitSpeechRecognition' in window) {
-            let rec = new webkitSpeechRecognition();
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            let rec = new SpeechRecognition();
             rec.lang = 'zh-TW';
             rec.onstart = () => document.querySelector(".btn-voice").innerText = "🔴 錄音中...";
             rec.onresult = (e) => document.getElementById("ai-prompt-handover").value = e.results[0][0].transcript;
             rec.onend = () => document.querySelector(".btn-voice").innerText = "🎤 語音輸入";
             rec.start();
-        } else { alert("瀏覽器不支援"); }
+        } else { alert("瀏覽器不支援語音轉文字"); }
     }
     
     function generateHandover() {
         let prompt = document.getElementById("ai-prompt-handover").value;
-        document.getElementById("ai-result-handover").style.display = "block";
+        if (!prompt) return;
+        const resultDiv = document.getElementById("ai-result-handover");
+        resultDiv.style.display = "block";
+        resultDiv.innerText = "⏳ 處理中，請稍候...";
         let fd = new FormData(); fd.append("prompt", prompt);
         fetch("/generate_handover", { method: "POST", body: fd })
-        .then(r => r.json()).then(d => document.getElementById("ai-result-handover").innerHTML = d.handover_log);
+        .then(r => r.json()).then(d => resultDiv.innerHTML = d.handover_log);
+    }
+
+    function consultAI() { 
+        const prompt = document.getElementById("ai-prompt-schedule").value;
+        if (!prompt) return;
+        const resultDiv = document.getElementById("ai-result-schedule");
+        resultDiv.style.display = "block"; 
+        resultDiv.innerText = "⏳ 處理中，請稍候...";
+        let formData = new FormData(); formData.append("prompt", prompt);
+        fetch("/generate_schedule", { method: "POST", body: formData })
+        .then(response => response.json())
+        .then(data => { resultDiv.innerText = "💡 AI 顧問建議：\n\n" + data.schedule; });
     }
 </script>
 </body>
